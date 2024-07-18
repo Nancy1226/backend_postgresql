@@ -1,0 +1,23 @@
+{
+  "name": "your-project-name",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.5",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.19.2",
+    "node-sql-parser": "^5.2.0",
+    "pg": "^8.12.0",
+    "pg-format": "^1.0.4",
+    "pg-promise": "^11.9.1",
+    "sql-formatter": "^15.3.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
