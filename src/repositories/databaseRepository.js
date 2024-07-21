@@ -40,6 +40,35 @@ export class DatabaseRepository {
     }
   }
 
+  //creacion de la base de datos
+  async executeSQLDatabase(sql) {
+    console.log('DatabaseRepository: Ejecutando SQL:', sql);
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(sql);
+      console.log('DatabaseRepository: Resultado:', result);
+      return result;
+    } catch (error) {
+      console.error('DatabaseRepository: Error al ejecutar SQL:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createDatabase(name) {
+    return this.executeSQL(`CREATE DATABASE ${name}`);
+  }
+
+  async dropDatabase(name) {
+    return this.executeSQL(`DROP DATABASE ${name}`);
+  }
+
+  async renameDatabase(oldName, newName) {
+    return this.executeSQL(`ALTER DATABASE ${oldName} RENAME TO ${newName}`);
+  }
+
+    //seleccion de base de datos
   async validateDatabaseExists(databaseName) {
     if (!this.pool) {
       throw new Error('No database connection established.');
@@ -84,7 +113,7 @@ export class DatabaseRepository {
         database: databaseNameTrimmed,
         connectionTimeoutMillis: 5000, // Timeout de 5 segundos
       });
-  
+      
       // Verificar la conexión
       const client = await this.pool.connect();
       try {
@@ -116,15 +145,16 @@ export class DatabaseRepository {
     }
   }
 
-  async createDatabase(sql) {
-    if (!this.pool) {
-      throw new Error('No database connection established.');
-    }
-    const client = await this.pool.connect(); try {
-      await client.query(sql); console.log('Database created successfully');
-    } finally { client.release(); }
-  }
+  // async createDatabase(sql) {
+  //   if (!this.pool) {
+  //     throw new Error('No database connection established.');
+  //   }
+  //   const client = await this.pool.connect(); try {
+  //     await client.query(sql); console.log('Database created successfully');
+  //   } finally { client.release(); }
+  // }
   
+      //creacion de tabla
   async createTable(sql) {
     if (!this.pool) {
       throw new Error('No database connection established.');
@@ -145,6 +175,7 @@ export class DatabaseRepository {
     }
   }
 
+    //creacion insersion de registros ala tabla
   async handleSqlInsert(sqlString) {
     if (!this.pool) {
       throw new Error('No database connection established.');
@@ -188,6 +219,7 @@ export class DatabaseRepository {
     }
   }
 
+
   async getTableStructure(tableName) {
     const sql = `
       SELECT column_name 
@@ -207,22 +239,22 @@ export class DatabaseRepository {
     try { const result = await client.query(listDbSql); return result.rows.map(row => row.datname); } finally { client.release(); }
   }
 
-  async executeSQL(sql, params = []) {
-    if (!this.pool)
-      { throw new Error('No database connection established.'); }
-    console.log(`Executing SQL: ${sql} with params:`, params); 
-    const client = await this.pool.connect(); 
-    try { 
-      const result = await client.query(sql, params); 
-      return result; 
-    } 
-      catch (error) { 
-        throw new Error(`Error executing SQL: ${error.message}`); 
-      } 
-      finally { 
-        client.release(); 
-      }
-  }
+  // async executeSQL(sql, params = []) {
+  //   if (!this.pool)
+  //     { throw new Error('No database connection established.'); }
+  //   console.log(`Executing SQL: ${sql} with params:`, params); 
+  //   const client = await this.pool.connect(); 
+  //   try { 
+  //     const result = await client.query(sql, params); 
+  //     return result; 
+  //   } 
+  //     catch (error) { 
+  //       throw new Error(`Error executing SQL: ${error.message}`); 
+  //     } 
+  //     finally { 
+  //       client.release(); 
+  //     }
+  // }
 
   async getDatabases() {
     const sql = "SELECT datname FROM pg_database WHERE datistemplate = false;"; 

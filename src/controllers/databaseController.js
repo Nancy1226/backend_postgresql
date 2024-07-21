@@ -3,8 +3,10 @@ import pkg from 'node-sql-parser';
 const { Parser } = pkg;
 
 export class DatabaseController {
-  constructor(createDatabaseUseCase, createTableUseCase, insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, connectDatabaseUseCase) {
-    this.createDatabaseUseCase = createDatabaseUseCase;
+  constructor( databaseUseCase,createTableUseCase, insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, connectDatabaseUseCase) {
+    // this.createDatabaseUseCase = createDatabaseUseCase;
+    this.databaseUseCase = databaseUseCase;
+    this.parser = new Parser();
     this.createTableUseCase = createTableUseCase;
     this.insertDataUseCase = insertDataUseCase;
     this.switchDatabaseUseCase = switchDatabaseUseCase;
@@ -13,22 +15,78 @@ export class DatabaseController {
     this.getCurrentDatabase = switchDatabaseUseCase.getCurrentDatabase.bind(switchDatabaseUseCase);
   }
 
-  async createDatabase(req, res) {
+  async handleDatabaseOperation(req, res) {
     const { sql } = req.body;
+
     if (!sql) {
       return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
     }
 
     try {
+      console.log('SQL recibida:', sql);
       const formattedSQL = format(sql);
-      const parser = new Parser();
-      parser.astify(formattedSQL, { database: 'PostgreSQL' }); // Validar SQL
-      await this.createDatabaseUseCase.execute(formattedSQL);
-      res.status(200).json({ message: 'Base de datos creada con éxito.' });
+      console.log('SQL formateada:', formattedSQL);
+
+      if (formattedSQL.trim().toUpperCase().startsWith('ALTER DATABASE')) {
+        const parts = formattedSQL.split(/\s+/);
+        if (parts.length >= 6 && parts[3].toUpperCase() === 'RENAME' && parts[4].toUpperCase() === 'TO') {
+          const oldName = parts[2];
+          const newName = parts[5].replace(';', '');
+          console.log(`Renombrando base de datos de ${oldName} a ${newName}`);
+          const result = await this.databaseUseCase.execute(formattedSQL);
+          return res.status(200).json({
+            message: `Base de datos renombrada de ${oldName} a ${newName}`
+       
+          });
+        } else {
+          return res.status(400).json({ error: 'Sintaxis de ALTER DATABASE inválida.' });
+        }
+      }
+
+      const ast = this.parser.astify(formattedSQL);
+      console.log('AST:', JSON.stringify(ast, null, 2));
+
+      const detectedOperation = ast[0]?.type?.toLowerCase();
+      console.log('Operación detectada:', detectedOperation);
+      
+      if (!['create', 'drop', 'alter'].includes(detectedOperation)) {
+        return res.status(400).json({ error: 'Operación no soportada o no reconocida.' });
+      }
+
+      console.log('Ejecutando la sentencia SQL...');
+      const result = await this.databaseUseCase.execute(formattedSQL);
+      console.log('Resultado de la ejecución:', result);
+  
+      res.status(200).json({ 
+        message: `Operación de base de datos (${detectedOperation}) ejecutada con éxito.`
+        // result: result
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('Error en handleDatabaseOperation:', error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor', 
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   }
+
+  // async createDatabase(req, res) {
+  //   const { sql } = req.body;
+  //   if (!sql) {
+  //     return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
+  //   }
+
+  //   try {
+  //     const formattedSQL = format(sql);
+  //     const parser = new Parser();
+  //     parser.astify(formattedSQL, { database: 'PostgreSQL' }); // Validar SQL
+  //     await this.createDatabaseUseCase.execute(formattedSQL);
+  //     res.status(200).json({ message: 'Base de datos creada con éxito.' });
+  //   } catch (error) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // }
 
   async connect(req, res) {
     const { host, username, password, port } = req.body;
