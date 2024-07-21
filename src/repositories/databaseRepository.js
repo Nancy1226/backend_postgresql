@@ -1,7 +1,7 @@
-import pkg from 'pg-format';
-const format = pkg;
-import pg from 'pg';
-const { Pool } = pg;
+import pkg from 'pg';
+const { Pool } = pkg;
+import format from 'pg-format';
+import { format as sqlFormatter } from 'sql-formatter';
 
 export class DatabaseRepository {
   constructor() {
@@ -40,7 +40,6 @@ export class DatabaseRepository {
       throw new Error(`No se pudo establecer la conexión: ${error.message}`);
     }
   }
-
   //creacion de la base de datos
   async executeSQLDatabase(sql) {
     console.log('DatabaseRepository: Ejecutando SQL:', sql);
@@ -192,48 +191,84 @@ export class DatabaseRepository {
   }
   
     //creacion insersion de registros ala tabla
-  async handleSqlInsert(sqlString) {
-    if (!this.pool) {
-      throw new Error('No database connection established.');
+    async handleSqlInsert(sqlString) {
+      if (!this.pool) {
+        throw new Error('No database connection established.');
+      }
+  
+      const client = await this.pool.connect();
+      try {
+        const match = sqlString.match(/INSERT\s+INTO\s+(\w+)\s*\((.*?)\)\s*VALUES\s*\((.*?)\)/i);
+        if (!match) {
+          throw new Error('La sentencia SQL no es un INSERT válido.');
+        }
+  
+        const [, tableName, columnsString, valuesString] = match;
+        const columns = columnsString.split(',').map(col => col.trim());
+        const values = valuesString.split(',').map(val => val.trim());
+  
+        const tableStructure = await this.getTableStructure(tableName);
+  
+        const extraFields = columns.filter(field => !tableStructure.includes(field));
+        const missingFields = tableStructure.filter(field => !columns.includes(field));
+  
+        if (extraFields.length > 0) {
+          throw new Error(`Los siguientes campos no existen en la tabla: ${extraFields.join(', ')}`);
+        }
+  
+        if (missingFields.length > 0) {
+          throw new Error(`Faltan los siguientes campos de la tabla: ${missingFields.join(', ')}`);
+        }
+  
+        const formattedSql = format('INSERT INTO %I (%I) VALUES (%L)', tableName, columns, values);
+        await client.query(formattedSql);
+        return { message: 'Datos insertados con éxito.' };
+      } finally {
+        client.release();
+      }
     }
-
-    const client = await this.pool.connect();
-    try {
-      // Extraer información de la sentencia SQL
-      const match = sqlString.match(/INSERT\s+INTO\s+(\w+)\s*\((.*?)\)\s*VALUES\s*\((.*?)\)/i);
-      if (!match) {
-        throw new Error('La sentencia SQL no es un INSERT válido.');
+  
+    async handleSqlDelete(sqlString) {
+      if (!this.pool) {
+        throw new Error('No database connection established.');
       }
-
-      const [, tableName, columnsString, valuesString] = match;
-      const columns = columnsString.split(',').map(col => col.trim());
-      const values = valuesString.split(',').map(val => val.trim());
-
-      // Obtener la estructura de la tabla
-      const tableStructure = await this.getTableStructure(tableName);
-
-      // Validar que los campos en el INSERT coincidan exactamente con la estructura de la tabla
-      const extraFields = columns.filter(field => !tableStructure.includes(field));
-      const missingFields = tableStructure.filter(field => !columns.includes(field));
-
-      if (extraFields.length > 0) {
-        throw new Error(`Los siguientes campos no existen en la tabla: ${extraFields.join(', ')}`);
+  
+      const client = await this.pool.connect();
+      try {
+        const match = sqlString.match(/DELETE\s+FROM\s+(\w+)\s+WHERE\s+(.*)/i);
+        if (!match) {
+          throw new Error('La sentencia SQL no es un DELETE válido.');
+        }
+  
+        const [, tableName, condition] = match;
+        const formattedSql = format('DELETE FROM %I WHERE %s', tableName, condition);
+        await client.query(formattedSql);
+        return { message: 'Datos eliminados con éxito.' };
+      } finally {
+        client.release();
       }
-
-      if (missingFields.length > 0) {
-        throw new Error(`Faltan los siguientes campos de la tabla: ${missingFields.join(', ')}`);
-      }
-
-      // Usar pg-format para construir una sentencia SQL segura
-      const formattedSql = format('INSERT INTO %I (%I) VALUES (%L)', tableName, columns, values);
-
-      // Ejecutar la sentencia SQL formateada
-      await client.query(formattedSql);
-      return { message: 'Datos insertados con éxito.' };
-    } finally {
-      client.release();
     }
-  }
+  
+    async handleSqlUpdate(sqlString) {
+      if (!this.pool) {
+        throw new Error('No database connection established.');
+      }
+  
+      const client = await this.pool.connect();
+      try {
+        const match = sqlString.match(/UPDATE\s+(\w+)\s+SET\s+(.*?)\s+WHERE\s+(.*)/i);
+        if (!match) {
+          throw new Error('La sentencia SQL no es un UPDATE válido.');
+        }
+  
+        const [, tableName, updates, condition] = match;
+        const formattedSql = format('UPDATE %I SET %s WHERE %s', tableName, updates, condition);
+        await client.query(formattedSql);
+        return { message: 'Datos actualizados con éxito.' };
+      } finally {
+        client.release();
+      }
+    }
 
   async getTableStructure(tableName) {
     const sql = `
@@ -264,4 +299,26 @@ export class DatabaseRepository {
       client.release(); 
     }
   }
+
+  // seleccion de la tabla
+  async handleSqlSelect(sqlString) {
+    if (!this.pool) {
+      throw new Error('No database connection established.');
+    }
+
+    const client = await this.pool.connect();
+    try {
+      
+      const match = sqlString.match(/SELECT\s+(.*)\s+FROM\s+(\w+)/i);
+      if (!match) {
+        throw new Error('La sentencia SQL no es un SELECT válido.');
+      }
+
+      const result = await client.query(sqlString);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
 }

@@ -3,12 +3,13 @@ import pkg from 'node-sql-parser';
 const { Parser } = pkg;
 
 export class DatabaseController {
-  constructor( databaseUseCase,createTableUseCase, getTablesUseCase ,insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, connectDatabaseUseCase) {
+  constructor( databaseUseCase,createTableUseCase, getTablesUseCase ,insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, selectDataUseCase, connectDatabaseUseCase) {
     this.databaseUseCase = databaseUseCase;
     this.parser = new Parser();
     this.createTableUseCase = createTableUseCase;
     this.getTablesUseCase = getTablesUseCase;
     this.insertDataUseCase = insertDataUseCase;
+    this.selectDataUseCase = selectDataUseCase;
     this.switchDatabaseUseCase = switchDatabaseUseCase;
     this.getDatabasesUseCase = getDatabasesUseCase;
     this.connectDatabaseUseCase = connectDatabaseUseCase;
@@ -31,6 +32,7 @@ export class DatabaseController {
       res.status(500).json({ error: error.message });
     }
   }
+
 
   //creacion base de datos
   async handleDatabaseOperation(req, res) {
@@ -178,27 +180,58 @@ export class DatabaseController {
     }
   }
   
-  
   //insercion de registros ala tabla
-  async insertData(req, res) {
-      const sqlString = req.body.sql || req.body.sqlString;
-      if (!sqlString) {
-        return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
-      }
-      try {
-        const result = await this.insertDataUseCase.insert(sqlString);
-        res.status(200).json(result);
-      } catch (error) {
-        console.error('Error al insertar datos:', error.message);
-        if (error.message.includes('no es un INSERT válido') || 
-            error.message.includes('no existen en la tabla') || 
-            error.message.includes('Faltan los siguientes campos')) {
-          res.status(400).json({ error: error.message });
-        } else {
-          res.status(500).json({ error: 'Error interno del servidor al procesar la solicitud.' });
-        }
-      }
+  async handleDataOperation(req, res) {
+    const sqlString = req.body.sql || req.body.sqlString;
+    if (!sqlString) {
+      return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
     }
 
+    try {
+      const lowerSql = sqlString.toLowerCase();
+      let result;
+      if (lowerSql.startsWith('insert')) {
+        result = await this.insertDataUseCase.insert(sqlString);
+      } else if (lowerSql.startsWith('delete')) {
+        result = await this.insertDataUseCase.delete(sqlString);
+      } else if (lowerSql.startsWith('update')) {
+        result = await this.insertDataUseCase.update(sqlString);
+      } else {
+        return res.status(400).json({ error: 'La operación SQL no es válida. Solo se permiten INSERT, DELETE y UPDATE.' });
+      }
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error al procesar la solicitud:', error.message);
+      if (error.message.includes('no es un INSERT válido') || 
+          error.message.includes('no es un DELETE válido') || 
+          error.message.includes('no es un UPDATE válido') ||
+          error.message.includes('no existen en la tabla') || 
+          error.message.includes('Faltan los siguientes campos')) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Error interno del servidor al procesar la solicitud.' });
+      }
+    }
+  }
 
+  //seleccion de la tabla
+  async handleSelectOperation(req, res) {
+    const sqlString = req.body.sql || req.body.sqlString;
+    if (!sqlString) {
+      return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
+    }
+
+    try {
+      const result = await this.selectDataUseCase.select(sqlString);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error al procesar la solicitud:', error);
+      res.status(500).json({
+        error: 'Error interno del servidor al procesar la solicitud.',
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  }
+  
 }
