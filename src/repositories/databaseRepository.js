@@ -167,6 +167,30 @@ export class DatabaseRepository {
     }
   }
 
+  //traer todas las tablas
+  async getTables() {
+    if (!this.pool) {
+      throw new Error('No database connection established.');
+    }
+  
+    const client = await this.pool.connect();
+    try {
+      await client.query(`SET search_path TO public`);
+      const result = await client.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_type = 'BASE TABLE';
+      `);
+      return result.rows.map(row => row.table_name);
+    } catch (error) {
+      console.error(`Error al obtener las tablas: ${error.message}`);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  
     //creacion insersion de registros ala tabla
   async handleSqlInsert(sqlString) {
     if (!this.pool) {
@@ -211,7 +235,6 @@ export class DatabaseRepository {
     }
   }
 
-
   async getTableStructure(tableName) {
     const sql = `
       SELECT column_name 
@@ -221,7 +244,6 @@ export class DatabaseRepository {
     const result = await this.pool.query(sql, [tableName]);
     return result.rows.map(row => row.column_name);
   }
-
 
   async listDatabases() {
     if (!this.pool) {

@@ -10,4 +10,5 @@ export class SwitchDatabaseUseCase {
   getCurrentDatabase() {
     return this.databaseRepository.getCurrentDatabase();
   }
+
 }

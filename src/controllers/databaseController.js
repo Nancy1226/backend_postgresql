@@ -3,11 +3,11 @@ import pkg from 'node-sql-parser';
 const { Parser } = pkg;
 
 export class DatabaseController {
-  constructor( databaseUseCase,createTableUseCase, insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, connectDatabaseUseCase) {
-    // this.createDatabaseUseCase = createDatabaseUseCase;
+  constructor( databaseUseCase,createTableUseCase, getTablesUseCase ,insertDataUseCase, switchDatabaseUseCase, getDatabasesUseCase, connectDatabaseUseCase) {
     this.databaseUseCase = databaseUseCase;
     this.parser = new Parser();
     this.createTableUseCase = createTableUseCase;
+    this.getTablesUseCase = getTablesUseCase;
     this.insertDataUseCase = insertDataUseCase;
     this.switchDatabaseUseCase = switchDatabaseUseCase;
     this.getDatabasesUseCase = getDatabasesUseCase;
@@ -89,7 +89,6 @@ export class DatabaseController {
     }
   }
 
-
 // seleccion de base de datos
   async switchDatabase(req, res) {
     const { databaseName } = req.body;
@@ -161,7 +160,24 @@ export class DatabaseController {
     }
   }
   
-
+  //traer todas las tablas
+  async getTables(req, res) {
+    const { databaseName } = req.query;
+  
+    try {
+      if (databaseName) {
+        await this.switchDatabaseUseCase.switch(databaseName);
+      }
+      console.log(`Obteniendo tablas de la base de datos: ${databaseName}`);
+      
+      const tables = await this.getTablesUseCase.execute();
+      res.status(200).json({ tables });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+  
   
   //insercion de registros ala tabla
   async insertData(req, res) {
