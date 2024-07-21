@@ -15,6 +15,24 @@ export class DatabaseController {
     this.getCurrentDatabase = switchDatabaseUseCase.getCurrentDatabase.bind(switchDatabaseUseCase);
   }
 
+  //conexion de base de datos
+  async connect(req, res) {
+    const { host, username, password, port } = req.body;
+  
+    if (!host || !username || !password || !port) {
+      return res.status(400).json({ error: 'Todos los campos son requeridos: host, username, password, port.' });
+    }
+  
+    try {
+      await this.connectDatabaseUseCase.connect({ host, username, password, port });
+      res.status(200).json({ message: 'Conexión exitosa' });
+    } catch (error) {
+      console.error('Error en el controlador al conectar:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  //creacion base de datos
   async handleDatabaseOperation(req, res) {
     const { sql } = req.body;
 
@@ -71,39 +89,8 @@ export class DatabaseController {
     }
   }
 
-  // async createDatabase(req, res) {
-  //   const { sql } = req.body;
-  //   if (!sql) {
-  //     return res.status(400).json({ error: 'La sentencia SQL es requerida.' });
-  //   }
 
-  //   try {
-  //     const formattedSQL = format(sql);
-  //     const parser = new Parser();
-  //     parser.astify(formattedSQL, { database: 'PostgreSQL' }); // Validar SQL
-  //     await this.createDatabaseUseCase.execute(formattedSQL);
-  //     res.status(200).json({ message: 'Base de datos creada con éxito.' });
-  //   } catch (error) {
-  //     res.status(500).json({ error: error.message });
-  //   }
-  // }
-
-  async connect(req, res) {
-    const { host, username, password, port } = req.body;
-  
-    if (!host || !username || !password || !port) {
-      return res.status(400).json({ error: 'Todos los campos son requeridos: host, username, password, port.' });
-    }
-  
-    try {
-      await this.connectDatabaseUseCase.connect({ host, username, password, port });
-      res.status(200).json({ message: 'Conexión exitosa' });
-    } catch (error) {
-      console.error('Error en el controlador al conectar:', error.message);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
+// seleccion de base de datos
   async switchDatabase(req, res) {
     const { databaseName } = req.body;
     if (!databaseName) {
@@ -129,6 +116,7 @@ export class DatabaseController {
     }
   }
 
+  //Traer todas las bases de datos
   async getDatabases(req, res) {
     try {
       const databases = await this.getDatabasesUseCase.getDatabases();
@@ -138,6 +126,7 @@ export class DatabaseController {
     }
   }
 
+  //creacion de tabla
   async createTable(req, res) {
     const { sql, databaseName } = req.body;
     if (!sql) {
@@ -148,19 +137,33 @@ export class DatabaseController {
       if (databaseName) {
         await this.switchDatabaseUseCase.switch(databaseName);
       }
-      console.log(`nombre de la base de datos ${databaseName}`);
-      console.log(`ejecucion sql ${sql}`);
+      console.log(`Nombre de la base de datos: ${databaseName}`);
+      console.log(`Ejecución SQL: ${sql}`);
+      
       const formattedSQL = format(sql);
       const parser = new Parser();
-      parser.astify(formattedSQL, { database: 'PostgreSQL' }); // Validar SQL
+      
+      // Validar SQL
+      const ast = parser.astify(formattedSQL, { database: 'PostgreSQL' });
+  
+      // Validar tipo de operación (CREATE, DROP, ALTER)
+      const validOperations = ['create', 'drop', 'alter'];
+      const operation = ast[0].type.toLowerCase();
+      if (!validOperations.includes(operation)) {
+        return res.status(400).json({ error: 'Operación SQL no permitida. Solo se permiten CREATE, DROP y ALTER.' });
+      }
+      
       await this.createTableUseCase.execute(formattedSQL);
-      res.status(200).json({ message: 'Tabla creada con éxito.' });
+      res.status(200).json({ message: 'Operación SQL ejecutada con éxito.' });
     } catch (error) {
       console.log(error);
       res.status(500).json({ error: error.message });
     }
   }
   
+
+  
+  //insercion de registros ala tabla
   async insertData(req, res) {
       const sqlString = req.body.sql || req.body.sqlString;
       if (!sqlString) {

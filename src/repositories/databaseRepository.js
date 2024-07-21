@@ -10,6 +10,7 @@ export class DatabaseRepository {
     this.currentDatabase = 'postgres';
   }
 
+  //crear conexion
   async connect(connectionDetails) {
     this.connectionDetails = connectionDetails;
     console.log('Intentando conectar con detalles:', connectionDetails);
@@ -144,17 +145,8 @@ export class DatabaseRepository {
       throw error; // Propagamos el error para que pueda ser manejado en el controlador
     }
   }
-
-  // async createDatabase(sql) {
-  //   if (!this.pool) {
-  //     throw new Error('No database connection established.');
-  //   }
-  //   const client = await this.pool.connect(); try {
-  //     await client.query(sql); console.log('Database created successfully');
-  //   } finally { client.release(); }
-  // }
   
-      //creacion de tabla
+  //creacion de tabla
   async createTable(sql) {
     if (!this.pool) {
       throw new Error('No database connection established.');
@@ -239,23 +231,7 @@ export class DatabaseRepository {
     try { const result = await client.query(listDbSql); return result.rows.map(row => row.datname); } finally { client.release(); }
   }
 
-  // async executeSQL(sql, params = []) {
-  //   if (!this.pool)
-  //     { throw new Error('No database connection established.'); }
-  //   console.log(`Executing SQL: ${sql} with params:`, params); 
-  //   const client = await this.pool.connect(); 
-  //   try { 
-  //     const result = await client.query(sql, params); 
-  //     return result; 
-  //   } 
-  //     catch (error) { 
-  //       throw new Error(`Error executing SQL: ${error.message}`); 
-  //     } 
-  //     finally { 
-  //       client.release(); 
-  //     }
-  // }
-
+  //traer todas las bases de datos
   async getDatabases() {
     const sql = "SELECT datname FROM pg_database WHERE datistemplate = false;"; 
     const client = await this.pool.connect(); 

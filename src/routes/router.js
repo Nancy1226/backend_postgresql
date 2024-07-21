@@ -36,7 +36,7 @@ router.post('/database', (req, res) => databaseController.handleDatabaseOperatio
 router.post('/switch-database', (req, res) => databaseController.switchDatabase(req, res));
 router.get('/databases', (req, res) => databaseController.getDatabases(req, res));
 // router.post('/create-database', (req, res) => databaseController.createDatabase(req, res));
-router.post('/create-table', (req, res) => databaseController.createTable(req, res));
+router.post('/table', (req, res) => databaseController.createTable(req, res));
 router.post('/insert-data', (req, res) => databaseController.insertData(req, res));
 
 export default router;
