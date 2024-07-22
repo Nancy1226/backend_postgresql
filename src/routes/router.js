@@ -40,7 +40,7 @@ router.get('/databases', (req, res) => databaseController.getDatabases(req, res)
 router.post('/switch-database', (req, res) => databaseController.switchDatabase(req, res));
 router.post('/table', (req, res) => databaseController.createTable(req, res));
 router.get('/tables', (req, res) => databaseController.getTables(req, res));
-router.post('/data-operation', (req, res) => databaseController.createTable(req, res));
+router.post('/data-operation', (req, res) => databaseController.handleDataOperation(req, res));
 router.post('/select-operation', (req, res) => databaseController.handleSelectOperation(req, res));
 
 export default router;
